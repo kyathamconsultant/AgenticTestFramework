@@ -1,0 +1,44 @@
+[
+  {
+    "first_name": "John",
+    "last_name": "Doe",
+    "postal_code": "12345",
+    "expected_result": "success",
+    "error_message": null
+  },
+  {
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "postal_code": "54321",
+    "expected_result": "success",
+    "error_message": null
+  },
+  {
+    "first_name": "Bob",
+    "last_name": "Johnson",
+    "postal_code": "99999",
+    "expected_result": "success",
+    "error_message": null
+  },
+  {
+    "first_name": "",
+    "last_name": "Doe",
+    "postal_code": "12345",
+    "expected_result": "failure",
+    "error_message": "First Name is required"
+  },
+  {
+    "first_name": "John",
+    "last_name": "",
+    "postal_code": "12345",
+    "expected_result": "failure",
+    "error_message": "Last Name is required"
+  },
+  {
+    "first_name": "John",
+    "last_name": "Doe",
+    "postal_code": "",
+    "expected_result": "failure",
+    "error_message": "Postal Code is required"
+  }
+]

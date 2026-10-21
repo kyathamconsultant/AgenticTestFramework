@@ -1,0 +1,16 @@
+{
+  "name": "pytest-agentic-test-framework",
+  "version": "1.0.0",
+  "description": "Python test automation framework with MCP Playwright integration",
+  "private": true,
+  "scripts": {
+    "test": "pytest",
+    "mcp:start": "npx @playwright/mcp@latest"
+  },
+  "devDependencies": {
+    "@playwright/mcp": "latest"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

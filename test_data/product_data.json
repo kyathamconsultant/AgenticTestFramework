@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1,
+    "name": "Sauce Labs Backpack",
+    "description": "carry.allTheThings() with the sleek, streamlined Sly Pack that melds unimaginable quality with such close attention to detail.",
+    "price": 29.99,
+    "category": "backpack"
+  },
+  {
+    "id": 2,
+    "name": "Sauce Labs Bike Light",
+    "description": "A red light isn't the desired state in testing, so why are so many devs bending the light to its will?",
+    "price": 9.99,
+    "category": "lights"
+  },
+  {
+    "id": 3,
+    "name": "Sauce Labs Bolt T-Shirt",
+    "description": "Get your testing superhero on with the Sauce Labs bolt T-shirt from the world famous rollout masters.",
+    "price": 15.99,
+    "category": "shirts"
+  },
+  {
+    "id": 4,
+    "name": "Sauce Labs Fleece Jacket",
+    "description": "It's not a bug. It's a feature! But usually, it is a bug.",
+    "price": 49.99,
+    "category": "jackets"
+  },
+  {
+    "id": 5,
+    "name": "Sauce Labs Onesie",
+    "description": "Uh.. testing? Hardness testing at 60 Durometer admits its not always the case. Notably, for your testable waood based overall...",
+    "price": 7.99,
+    "category": "onesies"
+  },
+  {
+    "id": 6,
+    "name": "Test.allTheThings() T-Shirt (Red)",
+    "description": "This classic Sauce Labs t-shirt is perfect to wear when chugging red wine with your bald chickens.",
+    "price": 15.99,
+    "category": "shirts"
+  }
+]

@@ -1,0 +1,178 @@
+Feature: Login Functionality for SauceDemo Application # features/login.feature:1
+  As a user
+  I want to login to the SauceDemo application
+  So that I can access the product catalog
+  Feature: Login Functionality for SauceDemo Application  # features/login.feature:1
+
+  Scenario: Successful login with valid credentials  # features/login.feature:9
+    Given I navigate to the login page               # features/steps/login_steps.py:13
+      Traceback (most recent call last):
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\model.py", line 1991, in run
+          match.run(runner.context)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\matchers.py", line 105, in run
+          self.func(context, *args, **kwargs)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "features\steps\login_steps.py", line 16, in step_navigate_to_login_page
+          login_page = LoginPage(context.browser)
+                                 ^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\runner.py", line 430, in __getattr__
+          raise AttributeError(msg)
+      AttributeError: 'Context' object has no attribute 'browser'
+
+    When I enter username "standard_user"            # None
+    And I enter password "secret_sauce"              # None
+    And I click the login button                     # None
+    Then I should be redirected to the products page # None
+
+  Scenario: Login failure with invalid password                               # features/login.feature:15
+    Given I navigate to the login page                                        # features/steps/login_steps.py:13
+      Traceback (most recent call last):
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\model.py", line 1991, in run
+          match.run(runner.context)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\matchers.py", line 105, in run
+          self.func(context, *args, **kwargs)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "features\steps\login_steps.py", line 16, in step_navigate_to_login_page
+          login_page = LoginPage(context.browser)
+                                 ^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\runner.py", line 430, in __getattr__
+          raise AttributeError(msg)
+      AttributeError: 'Context' object has no attribute 'browser'
+
+    When I enter username "standard_user"                                     # None
+    And I enter password "wrong_password"                                     # None
+    And I click the login button                                              # None
+    Then I should see an error message                                        # None
+    And The error message should contain "Username and password do not match" # None
+
+  Scenario: Login failure with locked user                                      # features/login.feature:22
+    Given I navigate to the login page                                          # features/steps/login_steps.py:13
+      Traceback (most recent call last):
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\model.py", line 1991, in run
+          match.run(runner.context)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\matchers.py", line 105, in run
+          self.func(context, *args, **kwargs)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "features\steps\login_steps.py", line 16, in step_navigate_to_login_page
+          login_page = LoginPage(context.browser)
+                                 ^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\runner.py", line 430, in __getattr__
+          raise AttributeError(msg)
+      AttributeError: 'Context' object has no attribute 'browser'
+
+    When I enter username "locked_out_user"                                     # None
+    And I enter password "secret_sauce"                                         # None
+    And I click the login button                                                # None
+    Then I should see an error message                                          # None
+    And The error message should contain "Sorry, this user has been locked out" # None
+
+  Scenario: Login with empty username                           # features/login.feature:29
+    Given I navigate to the login page                          # features/steps/login_steps.py:13
+      Traceback (most recent call last):
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\model.py", line 1991, in run
+          match.run(runner.context)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\matchers.py", line 105, in run
+          self.func(context, *args, **kwargs)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "features\steps\login_steps.py", line 16, in step_navigate_to_login_page
+          login_page = LoginPage(context.browser)
+                                 ^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\runner.py", line 430, in __getattr__
+          raise AttributeError(msg)
+      AttributeError: 'Context' object has no attribute 'browser'
+
+    When I enter username ""                                    # None
+    And I enter password "secret_sauce"                         # None
+    And I click the login button                                # None
+    Then I should see an error message                          # None
+    And The error message should contain "Username is required" # None
+
+  Scenario: Login with empty password                           # features/login.feature:36
+    Given I navigate to the login page                          # features/steps/login_steps.py:13
+      Traceback (most recent call last):
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\model.py", line 1991, in run
+          match.run(runner.context)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\matchers.py", line 105, in run
+          self.func(context, *args, **kwargs)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "features\steps\login_steps.py", line 16, in step_navigate_to_login_page
+          login_page = LoginPage(context.browser)
+                                 ^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\runner.py", line 430, in __getattr__
+          raise AttributeError(msg)
+      AttributeError: 'Context' object has no attribute 'browser'
+
+    When I enter username "standard_user"                       # None
+    And I enter password ""                                     # None
+    And I click the login button                                # None
+    Then I should see an error message                          # None
+    And The error message should contain "Password is required" # None
+
+  Scenario Outline: Login with multiple users -- @1.1   # features/login.feature:51
+    Given I navigate to the login page                  # features/steps/login_steps.py:13
+      Traceback (most recent call last):
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\model.py", line 1991, in run
+          match.run(runner.context)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\matchers.py", line 105, in run
+          self.func(context, *args, **kwargs)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "features\steps\login_steps.py", line 16, in step_navigate_to_login_page
+          login_page = LoginPage(context.browser)
+                                 ^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\runner.py", line 430, in __getattr__
+          raise AttributeError(msg)
+      AttributeError: 'Context' object has no attribute 'browser'
+
+    When I enter username "standard_user"               # None
+    And I enter password "secret_sauce"                 # None
+    And I click the login button                        # None
+    Then I should be redirected to the products page    # None
+
+  Scenario Outline: Login with multiple users -- @1.2   # features/login.feature:52
+    Given I navigate to the login page                  # features/steps/login_steps.py:13
+      Traceback (most recent call last):
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\model.py", line 1991, in run
+          match.run(runner.context)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\matchers.py", line 105, in run
+          self.func(context, *args, **kwargs)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "features\steps\login_steps.py", line 16, in step_navigate_to_login_page
+          login_page = LoginPage(context.browser)
+                                 ^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\runner.py", line 430, in __getattr__
+          raise AttributeError(msg)
+      AttributeError: 'Context' object has no attribute 'browser'
+
+    When I enter username "problem_user"                # None
+    And I enter password "secret_sauce"                 # None
+    And I click the login button                        # None
+    Then I should be redirected to the products page    # None
+
+  Scenario Outline: Login with multiple users -- @1.3   # features/login.feature:53
+    Given I navigate to the login page                  # features/steps/login_steps.py:13
+      Traceback (most recent call last):
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\model.py", line 1991, in run
+          match.run(runner.context)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\matchers.py", line 105, in run
+          self.func(context, *args, **kwargs)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "features\steps\login_steps.py", line 16, in step_navigate_to_login_page
+          login_page = LoginPage(context.browser)
+                                 ^^^^^^^^^^^^^^^
+        File "C:\Users\Srinivas\AppData\Local\Programs\Python\Python313\Lib\site-packages\behave\runner.py", line 430, in __getattr__
+          raise AttributeError(msg)
+      AttributeError: 'Context' object has no attribute 'browser'
+
+    When I enter username "performance_glitch_user"     # None
+    And I enter password "secret_sauce"                 # None
+    And I click the login button                        # None
+    Then I should be redirected to the products page    # None
+
