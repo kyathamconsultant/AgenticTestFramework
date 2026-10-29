@@ -1,0 +1,112 @@
+# Copy to: .gitlab-ci.yml
+stages: [lint, test, report, deploy]
+
+variables:
+  PYTHON_IMAGE: python:3.12-bookworm
+  ALLURE_VERSION: "2.30.0"
+  HEADLESS: "true"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PLAYWRIGHT_BROWSERS_PATH: "$CI_PROJECT_DIR/.cache/ms-playwright"
+  CI_SCRIPTS: .claude/skills/cicd-pipeline/scripts
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+default:
+  image: $PYTHON_IMAGE
+  interruptible: true
+
+.python:
+  cache:
+    key:
+      files: [requirements.txt]
+    paths: [.cache/pip]
+  before_script:
+    - pip install -r requirements.txt
+
+lint:
+  extends: .python
+  stage: lint
+  timeout: 10m
+  script:
+    - pip install ruff
+    - ruff check . --select E9,F63,F7,F82
+    - python -m behave --dry-run --no-summary
+
+dependency-audit:
+  extends: .python
+  stage: lint
+  allow_failure: true          # make blocking once the baseline is clean
+  script:
+    - pip install pip-audit
+    - pip-audit -r requirements.txt
+
+.e2e:
+  extends: .python
+  stage: test
+  needs: [lint]
+  timeout: 30m
+  cache:
+    - key:
+        files: [requirements.txt]
+      paths: [.cache/pip]
+    - key: playwright-$BROWSER
+      paths: [.cache/ms-playwright]
+  script:
+    - python -m playwright install --with-deps "$BROWSER"
+    - bash "$CI_SCRIPTS/run_tests.sh"
+    - test "$(grep -ho '<testcase ' results/junit/*.xml | wc -l)" -gt 0 || (echo "No scenarios executed" && exit 1)
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths: [results/]
+    reports:
+      junit: results/junit/*.xml
+
+e2e:
+  extends: .e2e
+  variables:
+    BROWSER: chromium
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+
+e2e:cross-browser:
+  extends: .e2e
+  parallel:
+    matrix:
+      - BROWSER: [chromium, firefox, webkit]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web" && $CROSS_BROWSER == "true"
+
+allure-report:
+  stage: report
+  image: eclipse-temurin:21-jre
+  when: always
+  needs:
+    - job: e2e
+      optional: true
+    - job: e2e:cross-browser
+      optional: true
+  script:
+    - apt-get update -qq && apt-get install -y -qq curl >/dev/null
+    - curl -sL "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz" | tar xz
+    - "./allure-${ALLURE_VERSION}/bin/allure generate results/allure-results -o allure-report --clean"
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths: [allure-report/]
+
+pages:
+  stage: deploy
+  needs: [allure-report]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - mv allure-report public
+  artifacts:
+    paths: [public]

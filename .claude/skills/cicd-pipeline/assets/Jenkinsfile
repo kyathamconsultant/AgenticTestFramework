@@ -1,0 +1,87 @@
+// Copy to: Jenkinsfile
+// Required plugins: Pipeline, Docker Pipeline, JUnit, Allure Jenkins Plugin, Timestamper
+pipeline {
+    agent none
+
+    options {
+        timeout(time: 45, unit: 'MINUTES')
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '10'))
+        disableConcurrentBuilds(abortPrevious: true)
+    }
+
+    parameters {
+        string(name: 'TAGS', defaultValue: '', description: 'Behave tag expression (blank = all)')
+        booleanParam(name: 'CROSS_BROWSER', defaultValue: false, description: 'Run firefox + webkit too')
+    }
+
+    triggers {
+        cron('H 2 * * 1-5')    // nightly cross-browser
+    }
+
+    environment {
+        HEADLESS      = 'true'
+        CI_SCRIPTS    = '.claude/skills/cicd-pipeline/scripts'
+        PIP_CACHE_DIR = "${WORKSPACE}/.cache/pip"
+    }
+
+    stages {
+        stage('Lint & Parse') {
+            agent { docker { image 'python:3.12-bookworm'; args '-u root' } }
+            steps {
+                sh 'pip install -r requirements.txt ruff'
+                sh 'ruff check . --select E9,F63,F7,F82'
+                sh 'python -m behave --dry-run --no-summary'
+            }
+        }
+
+        stage('E2E') {
+            matrix {
+                axes {
+                    axis { name 'BROWSER'; values 'chromium', 'firefox', 'webkit' }
+                }
+                when {
+                    anyOf {
+                        expression { env.BROWSER == 'chromium' }
+                        expression { params.CROSS_BROWSER }
+                        triggeredBy 'TimerTrigger'
+                    }
+                }
+                // --ipc=host stops Chromium crashing on Docker's small default /dev/shm
+                agent { docker { image 'python:3.12-bookworm'; args '-u root --ipc=host' } }
+                stages {
+                    stage('Run') {
+                        steps {
+                            sh 'pip install -r requirements.txt'
+                            sh 'python -m playwright install --with-deps "$BROWSER"'
+                            // withCredentials([string(credentialsId: 'saucedemo-test-password', variable: 'TEST_PASSWORD')]) {
+                            sh 'TAGS="$TAGS" bash "$CI_SCRIPTS/run_tests.sh"'
+                            // }
+                        }
+                        post {
+                            always {
+                                // allowEmptyResults: false doubles as the zero-test guard
+                                junit testResults: 'results/junit/*.xml', allowEmptyResults: false
+                                archiveArtifacts artifacts: 'results/**', allowEmptyArchive: true
+                                stash name: "allure-${BROWSER}", includes: 'results/allure-results/**', allowEmpty: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            node('') {
+                script {
+                    ['chromium', 'firefox', 'webkit'].each { b ->
+                        catchError(buildResult: null, stageResult: null) { unstash "allure-${b}" }
+                    }
+                }
+                allure includeProperties: false, results: [[path: 'results/allure-results']]
+            }
+        }
+    }
+}
