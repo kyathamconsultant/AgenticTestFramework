@@ -29,8 +29,11 @@ def step_verify_order_summary_displayed(context):
     logger.info("Order summary is displayed")
 
 
+# The "" variants exist because parse's {name} needs at least one character,
+# and the missing-field scenarios submit empty fields.
 @when('I enter first name "{first_name}"')
-def step_enter_first_name(context, first_name):
+@when('I enter first name ""')
+def step_enter_first_name(context, first_name=""):
     """Enter first name"""
     checkout_page = context.checkout_page
     assert checkout_page.enter_first_name(first_name), f"Failed to enter first name: {first_name}"
@@ -38,7 +41,8 @@ def step_enter_first_name(context, first_name):
 
 
 @when('I enter last name "{last_name}"')
-def step_enter_last_name(context, last_name):
+@when('I enter last name ""')
+def step_enter_last_name(context, last_name=""):
     """Enter last name"""
     checkout_page = context.checkout_page
     assert checkout_page.enter_last_name(last_name), f"Failed to enter last name: {last_name}"
@@ -46,7 +50,8 @@ def step_enter_last_name(context, last_name):
 
 
 @when('I enter postal code "{postal_code}"')
-def step_enter_postal_code(context, postal_code):
+@when('I enter postal code ""')
+def step_enter_postal_code(context, postal_code=""):
     """Enter postal code"""
     checkout_page = context.checkout_page
     assert checkout_page.enter_postal_code(postal_code), f"Failed to enter postal code: {postal_code}"

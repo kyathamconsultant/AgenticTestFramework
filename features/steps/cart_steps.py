@@ -1,7 +1,7 @@
 """
 Step definitions for cart feature
 """
-from behave import when, then
+from behave import when, then, step
 from pages.cart_page import CartPage
 from pages.checkout_page import CheckoutPage
 from utilities.logger_utils import get_logger
@@ -10,7 +10,7 @@ from utilities.screenshot_utils import ScreenshotUtils
 logger = get_logger(__name__)
 
 
-@when('I click on the cart link')
+@step('I click on the cart link')
 def step_click_cart_link(context):
     """Click on cart link"""
     products_page = context.products_page
@@ -97,7 +97,7 @@ def step_verify_cart_total(context):
     logger.info(f"Cart total calculated: ${total:.2f}")
 
 
-@when('I click checkout button')
+@step('I click checkout button')
 def step_click_checkout_button(context):
     """Click checkout button"""
     cart_page = context.cart_page

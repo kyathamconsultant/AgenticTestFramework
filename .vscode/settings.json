@@ -1,0 +1,23 @@
+{
+  // Cucumber extension (cucumberopen.cucumber-official) reads step text as
+  // Cucumber Expressions, where {name} is a parameter *type*. Behave uses
+  // {name} as a named placeholder, so each placeholder name used in
+  // features/steps/*.py must be registered here, or the extension reports
+  // "Undefined step" for steps behave actually resolves.
+  // When a step definition introduces a new {placeholder}, add it below.
+  "cucumber.features": ["features/**/*.feature"],
+  "cucumber.glue": ["features/steps/**/*.py"],
+  "cucumber.parameterTypes": [
+    { "name": "count", "regexp": "\\d+" },
+    { "name": "expected_count", "regexp": "[^\"]*" },
+    { "name": "expected_name", "regexp": "[^\"]*" },
+    { "name": "expected_text", "regexp": "[^\"]*" },
+    { "name": "first_name", "regexp": "[^\"]*" },
+    { "name": "last_name", "regexp": "[^\"]*" },
+    { "name": "password", "regexp": "[^\"]*" },
+    { "name": "postal_code", "regexp": "[^\"]*" },
+    { "name": "product_name", "regexp": "[^\"]*" },
+    { "name": "sort_option", "regexp": "[^\"]*" },
+    { "name": "username", "regexp": "[^\"]*" }
+  ]
+}

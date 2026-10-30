@@ -1,7 +1,7 @@
 """
 Step definitions for products feature
 """
-from behave import given, when, then
+from behave import given, when, then, step
 from pages.products_page import ProductsPage
 from utilities.logger_utils import get_logger
 from utilities.screenshot_utils import ScreenshotUtils
@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 
 
 @given('I am on the products page')
+@then('I should be on the products page')
 def step_am_on_products_page(context):
     """Verify user is on products page"""
     products_page = ProductsPage(context.browser)
@@ -36,7 +37,7 @@ def step_verify_products_page_displayed(context):
     ScreenshotUtils.take_screenshot(context.browser, "products_page")
 
 
-@when('I add product "{product_name}" to cart')
+@step('I add product "{product_name}" to cart')
 def step_add_product_to_cart(context, product_name):
     """Add product to cart"""
     products_page = context.products_page

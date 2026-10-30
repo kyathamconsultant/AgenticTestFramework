@@ -18,15 +18,19 @@ def step_navigate_to_login_page(context):
     context.login_page = login_page
 
 
+# The "" variants exist because parse's {name} needs at least one character,
+# and the validation scenarios submit empty fields.
 @when('I enter username "{username}"')
-def step_enter_username(context, username):
+@when('I enter username ""')
+def step_enter_username(context, username=""):
     """Enter username"""
     login_page = context.login_page
     login_page.enter_username(username)
 
 
 @when('I enter password "{password}"')
-def step_enter_password(context, password):
+@when('I enter password ""')
+def step_enter_password(context, password=""):
     """Enter password"""
     login_page = context.login_page
     login_page.enter_password(password)
