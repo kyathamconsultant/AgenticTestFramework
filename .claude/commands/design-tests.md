@@ -1,9 +1,16 @@
-Read and apply the agent instructions from .claude/agents/
-qa-analyst-agent.md
+---
+description: Risk-based test design for a feature (qa-analyst-agent) → specs/<feature>-risk-analysis.md
+argument-hint: <feature name or description>
+---
 
-Read and apply the skill knowledge from .claude/skills/application-domain/SKILL.md.
+Delegate to the **qa-analyst-agent** subagent (`.claude/agents/qa-analyst-agent.md`).
 
-Read claude.md for project context before starting.
+The agent loads these skills itself:
+- `.claude/skills/application-domain/SKILL.md`: risk categories (primary)
+- `.claude/skills/cucumber-feature-file/SKILL.md`: Gherkin-ready scenario wording and tags
 
-Analyze this feature and deliver the complete output as
-defined by the agent: $ARGUMENTS
+Context: read `CLAUDE.md` and `.claude/ARCHITECTURE.md` (artifact contract, gate G1).
+
+Feature to analyse: $ARGUMENTS
+
+Deliverable: `specs/<feature>-risk-analysis.md` in the agent's Output Structure, plus a short summary (risk counts by level, number of test cases, High risks covered). Design only: no code, no test runs.

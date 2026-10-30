@@ -139,6 +139,17 @@ PyClaudeAgenticTestFramewokr/
 │   ├── screenshots/            # Failure screenshots
 │   └── logs/                   # Test execution logs
 │
+├── .claude/                    # Agentic layer (see ARCHITECTURE.md)
+│   ├── ARCHITECTURE.md         # Skills × agents × commands, artifacts, gates
+│   ├── skills/                 # Standards: application-domain, cucumber-feature-file,
+│   │                           #   playwright-test-automation, test-code-review, cicd-pipeline
+│   ├── agents/                 # Workflow: orchestrator, analyst, planner, generator,
+│   │                           #   healer, reviewer
+│   └── commands/               # /design-tests /generate-playwright-tests /heal-tests
+│                               #   /review-tests /setup-pipeline
+├── specs/                      # Agent artifacts: risk analyses, test plans, healing logs
+├── .github/workflows/          # CI: e2e-tests.yml
+│
 ├── environment.py              # Behave hooks & environment setup
 ├── behave.ini                  # Behave configuration
 ├── requirements.txt            # Python dependencies
@@ -385,6 +396,29 @@ logger = get_logger(__name__)
 logger.info(f"Logging in as {username}")
 logger.error(f"Element not found: {selector}")
 ```
+
+### Agentic Architecture (Claude skills, agents, commands)
+
+The full design is in [.claude/ARCHITECTURE.md](.claude/ARCHITECTURE.md). The essentials:
+
+- **Stack rule:** all generated tests are **Python Behave** (feature files, step definitions, page objects). Never TypeScript `.spec.ts` or npm test scripts.
+- **Skills own the standards. Agents own the workflow. Commands are the entry points.**
+
+| Command | What it does | Agent(s) |
+|---------|--------------|----------|
+| `/design-tests <feature>` | Risk-based test design → `specs/<feature>-risk-analysis.md` | qa-analyst-agent |
+| `/generate-playwright-tests <feature>` | Analyse → explore (MCP) → generate → run/heal → review | orchestrator + all specialists |
+| `/heal-tests [target]` | Fix failing or flaky scenarios | playwright-test-healer |
+| `/review-tests [target]` | Severity-ranked review with verdict | test-code-reviewer |
+| `/setup-pipeline [platform]` | Create or review CI | cicd-pipeline skill |
+
+| Skill | Standard it owns |
+|-------|------------------|
+| `application-domain` | E-commerce risks: what to test |
+| `cucumber-feature-file` | How to write `.feature` files |
+| `playwright-test-automation` | How to implement: locators, POM, steps, waits, assertions |
+| `test-code-review` | How to review |
+| `cicd-pipeline` | How to run in CI |
 
 ---
 

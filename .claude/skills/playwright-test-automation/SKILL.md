@@ -1,810 +1,218 @@
 ---
 name: playwright-test-automation
-title: Playwright BDD Automation Standards
-description: Industry-standard Playwright automation with Cucumber, Gherkin, and Allure reporting
-category: Test Automation
-version: 3.1
-updated: 2026-07-23
-level: Intermediate to Advanced
+description: Implementation standards for this Python Behave + Playwright (sync API) + Allure framework - locator strategy, Page Object Model classes, step definitions, assertions with expect(), wait strategy, hooks in environment.py, test data, configuration, logging and Allure attachments. Use when writing, generating, fixing, or refactoring page objects, step definitions, hooks, or utilities, or when choosing selectors from a live DOM.
+license: Proprietary - internal QA team use
+compatibility: Python 3.8+, playwright>=1.40 (sync API), behave>=1.2.6, allure-behave. Not for TypeScript @playwright/test projects.
+metadata:
+  author: QA Team
+  version: "4.0"
+  updated: "2026-10-30"
+  category: test-automation
+  supersedes: "3.1 (TypeScript/Cucumber-JS edition)"
 ---
 
-# Playwright BDD Automation Standards
+# Playwright Python Implementation Standards
 
-**Comprehensive guide for enterprise-grade test automation with Playwright, Cucumber, and Allure Reporting**
+How to implement tests in this framework. Related skills:
+- **Feature files** (Gherkin wording, tags, structure): the `cucumber-feature-file` skill.
+- **What to test** (risk): the `application-domain` skill.
+- **Reviewing the result:** the `test-code-review` skill.
 
----
+## Contents
+1. [Project layout](#1-project-layout)
+2. [Locator strategy](#2-locator-strategy)
+3. [Page objects](#3-page-objects)
+4. [Step definitions](#4-step-definitions)
+5. [Assertions](#5-assertions)
+6. [Waits](#6-waits)
+7. [Hooks & browser lifecycle](#7-hooks--browser-lifecycle)
+8. [Test data & configuration](#8-test-data--configuration)
+9. [Logging & reporting](#9-logging--reporting)
+10. [Commands](#10-commands)
+11. [Common pitfalls](#11-common-pitfalls)
 
-## 📋 Table of Contents
+## 1. Project layout
 
-1. [Project Structure](#project-structure)
-2. [Feature Files & Gherkin](#feature-files--gherkin)
-3. [Locator Strategy](#locator-strategy)
-4. [Assertions & Validation](#assertions--validation)
-5. [Wait Strategy](#wait-strategy)
-6. [Test Stability](#test-stability)
-7. [Reporting Standards](#reporting-standards)
-8. [Step Definitions](#step-definitions)
-9. [Configuration](#configuration)
-10. [Data Management](#data-management)
-11. [Common Pitfalls](#common-pitfalls)
+| Layer | Path | Naming | Rule |
+|-------|------|--------|------|
+| Feature files | `features/<feature>.feature` | kebab-case | Follow the `cucumber-feature-file` skill |
+| Step definitions | `features/steps/<feature_snake>_steps.py` | snake_case | Thin: call page objects, then assert |
+| Page objects | `pages/<page_snake>_page.py` → `class <Page>Page(BasePage)` | snake_case / PascalCase | Selectors and UI interaction only |
+| Test data | `test_data/<feature_snake>_data.json` / `.csv` | snake_case | Read via `utilities/data_reader.py` |
+| Config | `config/config.py` (`Config`) + `.env` | UPPER_SNAKE | Every setting has a safe default |
+| Utilities | `utilities/` | snake_case | Logging, waits, screenshots, data |
+| Hooks | `environment.py` | – | Browser lifecycle, screenshots, Allure |
 
----
+**Never generate** `.spec.ts`, `playwright.config.ts`, `package.json` test scripts or `tests/` folders. This is not a TypeScript project.
 
-## Project Structure
+## 2. Locator strategy
 
-### Feature-Driven Organization
+**Selectors must come from the live DOM.** Use the MCP `browser_snapshot` / `browser_generate_locator` tools. Never guess. Choose the highest available tier:
 
-```
-project/
-├── features/
-│   ├── auth/
-│   │   ├── login.feature
-│   │   ├── logout.feature
-│   │   └── password-reset.feature
-│   ├── products/
-│   │   ├── product-listing.feature
-│   │   ├── product-search.feature
-│   │   └── product-filters.feature
-│   ├── cart/
-│   │   ├── add-to-cart.feature
-│   │   └── checkout.feature
-│   └── orders/
-│       ├── order-placement.feature
-│       └── order-history.feature
-├── steps/
-│   ├── auth.steps.ts
-│   ├── products.steps.ts
-│   ├── cart.steps.ts
-│   ├── orders.steps.ts
-│   ├── common.steps.ts
-│   └── hooks.ts
-├── pages/
-│   ├── base.page.ts
-│   ├── login.page.ts
-│   ├── products.page.ts
-│   ├── cart.page.ts
-│   └── checkout.page.ts
-├── test-data/
-│   ├── users.json
-│   ├── products.json
-│   └── test-scenarios.json
-├── playwright.config.ts
-├── cucumber.js
-├── allure-report-config.js
-└── package.json
-```
+| Tier | Strategy | Python example | When |
+|------|----------|----------------|------|
+| 1 | Test id (`data-test` on SauceDemo) | `page.get_by_test_id("login-button")` or `"[data-test='login-button']"` | Always, when present |
+| 2 | Role + accessible name | `page.get_by_role("button", name="Login")` | No test id |
+| 3 | Label / placeholder / stable id or name | `page.get_by_placeholder("Username")`, `"#user-name"` | No role or name |
+| 4 | CSS class / XPath | `".inventory_item"` | Last resort; justify in a comment |
 
----
+- SauceDemo uses `data-test`, not Playwright's default `data-testid`. Call `context.playwright.selectors.set_test_id_attribute("data-test")` once, before creating pages, if you use `get_by_test_id`.
+- Scope repeated elements through their container, not by index: `page.locator(".inventory_item").filter(has_text=name).get_by_role("button")`.
+- ❌ Avoid: `nth-child` chains, absolute XPath, auto-generated or styling classes, and text that changes with locale or content.
+- Store selector strings as **class constants**. Build parameterised locators in methods.
 
-## Feature Files & Gherkin
+## 3. Page objects
 
-### File Naming Convention
+```python
+"""Page object for the SauceDemo cart page."""
+from typing import List
 
-| Convention | Format | Example |
-|-----------|--------|---------|
-| **File Name** | `feature-name.feature` | `login.feature` |
-| **Location** | `features/<domain>/` | `features/auth/login.feature` |
-| **Case Style** | kebab-case, lowercase | `product-listing.feature` |
+from playwright.sync_api import Page, Locator
 
-### Feature File Structure
+from pages.base_page import BasePage
+from utilities.logger_utils import get_logger
 
-**Example: `features/auth/login.feature`**
+logger = get_logger(__name__)
 
-```gherkin
-Feature: User Login to Swag Labs
-  As a user
-  I want to login to the Swag Labs application
-  So that I can access my account and purchase products
 
-  Background:
-    Given I navigate to the login page
+class CartPage(BasePage):
+    """Cart page: list, remove and check out items."""
 
-  @smoke @critical
-  Scenario: Successful login with valid credentials
-    When I enter email "standard_user@saucedemo.com"
-    And I enter password "password123"
-    And I click the login button
-    Then I should be redirected to the products page
-    And I should see the products inventory
-    And the page title should be "Swag Labs - Products"
+    CART_ITEM = "[data-test='inventory-item']"
+    ITEM_NAME = "[data-test='inventory-item-name']"
+    CHECKOUT_BUTTON = "[data-test='checkout']"
 
-  @critical
-  Scenario Outline: Login with different user types
-    When I enter email "<email>"
-    And I enter password "<password>"
-    And I click the login button
-    Then I should see the result "<expectedResult>"
-    And the page URL should be "<expectedURL>"
+    def __init__(self, page: Page):
+        super().__init__(page)
 
-    Examples:
-      | email                    | password    | expectedResult       | expectedURL        |
-      | standard_user@saucedemo  | password123 | success              | /inventory.html    |
-      | locked_out_user@saucedemo| password123 | locked_account_error | /auth-v2/login     |
-      | problem_user@saucedemo   | password123 | success              | /inventory.html    |
+    def item(self, name: str) -> Locator:
+        return self.page.locator(self.CART_ITEM).filter(has_text=name)
 
-  @negative @regression
-  Scenario Outline: Login with invalid credentials
-    When I enter email "<email>"
-    And I enter password "<password>"
-    And I click the login button
-    Then I should see error message "<errorMessage>"
-    And I should remain on the login page
+    def item_names(self) -> List[str]:
+        return self.page.locator(self.ITEM_NAME).all_inner_texts()
 
-    Examples:
-      | email                   | password      | errorMessage                              |
-      | invalid@saucedemo.com   | password123   | Epic sadface: Username and password do not match |
-      | standard_user@saucedemo | wrongpassword | Epic sadface: Username and password do not match |
-      | ""                      | password123   | Epic sadface: Username is required        |
-      | standard_user@saucedemo | ""            | Epic sadface: Password is required        |
+    def remove(self, name: str) -> None:
+        logger.info(f"Removing '{name}' from cart")
+        self.item(name).get_by_role("button", name="Remove").click()
+
+    def checkout(self) -> None:
+        self.page.locator(self.CHECKOUT_BUTTON).click()
 ```
 
-### Scenario Outline Best Practices
+| Rule | Detail |
+|------|--------|
+| Inherit `BasePage` | Reuse its helpers. Don't re-implement navigation or screenshots |
+| Intent-level methods | `login(username, password)`, `add_to_cart(name)`, not `click_button_3()` |
+| Return state, don't assert | `item_names()`, `error_text()`, `is_loaded()`. Steps do the asserting |
+| Let errors propagate | Don't wrap Playwright calls in `try/except Exception: return False`. That discards the timeout and selector details. If you must add context: `raise AssertionError(f"Cart item '{name}' not found") from e` |
+| Never log secrets | Log the selector or field name, not the value typed into password fields |
+| One page or component per class | Shared widgets (header, cart badge) can be their own component class |
+| Type hints | On all public methods |
 
-✅ **DO Use Scenario Outlines** for data-driven tests
+## 4. Step definitions
 
-```gherkin
-Scenario Outline: Login with different user types
-  When I enter email "<email>"
-  And I enter password "<password>"
-  And I click the login button
-  Then I should see "<expectedResult>"
-  
-  Examples:
-    | email             | password    | expectedResult |
-    | user1@test.com    | password123 | success        |
-    | user2@test.com    | password123 | success        |
+```python
+"""Step definitions for cart.feature."""
+from behave import given, when, then
+from playwright.sync_api import expect
+
+from pages.cart_page import CartPage
+
+
+@when('I remove "{product}" from my cart')
+def step_remove_from_cart(context, product):
+    context.cart_page = CartPage(context.browser)
+    context.cart_page.remove(product)
+
+
+@then("my cart contains {count:d} item(s)")
+def step_cart_count(context, count):
+    names = context.cart_page.item_names()
+    assert len(names) == count, f"Cart count: expected {count}, got {len(names)} {names}"
 ```
 
-❌ **AVOID Repetitive Scenarios**
+| Rule | Detail |
+|------|--------|
+| Thin steps | No selectors and no raw `page.click` in steps. Go through page objects |
+| Reuse before writing | Run `behave --steps-catalog` first. Behave registers steps globally, so a duplicate pattern raises `AmbiguousStep` |
+| Typed parameters | `{count:d}`, `{price:f}` instead of `int(count)` |
+| Wording matches the feature | Step text follows the `cucumber-feature-file` skill (declarative, first person) |
+| `context` attributes | Set in Given/When, read in Then. Name them clearly (`context.cart_page`). Nothing survives between scenarios except what hooks create |
+| Credentials | Resolve by role from `Config` (`Config.TEST_USER_STANDARD`, `Config.TEST_PASSWORD`). Never from literals in steps |
 
-```gherkin
-# Instead of writing same scenario 3 times:
-Scenario: Login with user 1 → Use Scenario Outline
-Scenario: Login with user 2 → Use Scenario Outline
-Scenario: Login with user 3 → Use Scenario Outline
+## 5. Assertions
+
+Prefer Playwright's **web-first assertions**. They retry until the timeout, which removes most flakiness:
+
+```python
+from playwright.sync_api import expect
+import re
+
+expect(page.get_by_test_id("error")).to_have_text(re.compile("Username is required"))
+expect(page).to_have_url(re.compile(r"/inventory\.html$"))
+expect(page.locator("[data-test='inventory-item']")).to_have_count(6)
+expect(page.get_by_test_id("shopping-cart-badge")).to_be_hidden()
 ```
 
----
+- Assert the **outcome the user sees**, specifically: exact text, count, URL or value. Never `assert page.click_x()`, which only proves no exception was raised.
+- Plain `assert` with a message for computed values: `assert total == expected, f"Total: expected {expected}, got {total}"`.
+- **Money:** compare with `decimal.Decimal`, never floats, and assert subtotal, tax and total separately (see the financial risks in the `application-domain` skill).
+- Sorting: assert the whole list against `sorted(...)`, not just the first item.
 
-## Locator Strategy
+## 6. Waits
 
-### Priority-Based Selector Hierarchy
+| ✅ Do | ❌ Don't |
+|------|---------|
+| Rely on locator auto-waiting (`click`, `fill`) and `expect(...)` | `time.sleep(n)` / `page.wait_for_timeout(n)` |
+| `locator.wait_for(state="visible")` for explicit state | Polling loops with sleeps |
+| `page.wait_for_url(...)`, `page.wait_for_load_state("networkidle")` only when needed | Raising timeouts globally to hide slowness |
+| `page.expect_response("**/api/cart")` around the triggering action | Waiting on arbitrary DOM after a network call |
 
-#### **Tier 1: Data Test IDs (MOST STABLE & PREFERRED)**
+Timeouts come from `Config.EXPLICIT_WAIT` (seconds × 1000 for Playwright). Set them once with `page.set_default_timeout(...)` in the hook, not per call.
 
-```typescript
-// ✓ BEST - Explicit and stable, won't break on style changes
-page.locator('[data-testid="login-button"]')
-page.locator('button[data-testid="login-button"]')
-```
+## 7. Hooks & browser lifecycle
 
-**Why Use:**
-- Decoupled from CSS/HTML structure
-- Explicit test automation intent
-- Won't break during UI style updates
-- Self-documenting
+`environment.py` owns the browser. Standards:
+- **Fresh isolated state per scenario:** create a new `browser.new_context(...)` and `new_page()` per scenario (a cookie-free session). Launch the browser once per run in `before_all` for speed.
+- **Clean up in `after_scenario` in every case**, including when setup failed (`getattr(context, "page", None)` guards).
+- **On failure:** take a screenshot, attach it to Allure, and optionally save a trace (`context.tracing.start(screenshots=True, snapshots=True)` in `before_scenario`, then `stop(path=...)` on failure).
+- Read browser, headless mode, slow-mo and viewport only from `Config`. CI sets `HEADLESS=true`.
 
-#### **Tier 2: ARIA Roles & Labels (ACCESSIBLE)**
+## 8. Test data & configuration
 
-```typescript
-// ✓ BEST - Accessible and stable
-page.getByRole('button', { name: 'Login' })
-page.locator('[aria-label="Close"]')
-page.locator('[aria-placeholder="Username"]')
-```
+- Inline Gherkin examples carry **illustrative** data. Bulk, generated or sensitive-looking data goes in `test_data/` and is read through `utilities/data_reader.py`.
+- Credentials and URLs come from env vars via `Config`. Never hard-code them in pages, steps or data files.
+- New settings: add them to `Config` with a default, to `.env.example`, and to the configuration table in `CLAUDE.md`.
 
-**Why Use:**
-- Tests actual accessibility
-- Ensures screen reader compatibility
-- Stable for assistive technology users
-- User-centric approach
+## 9. Logging & reporting
 
-#### **Tier 3: Semantic HTML (RELIABLE)**
+- `logger = get_logger(__name__)` in every module. `info` for actions, `debug` for detail, `error` only for real failures. No `print`.
+- Allure attachments: `allure.attach(page.screenshot(), name="cart", attachment_type=allure.attachment_type.PNG)`.
+- Run with the Allure formatter: `behave -f allure_behave.formatter:AllureFormatter -o results/allure-results`. The CI runner script already does this.
+- Tag scenarios for reporting and CI selection using the tag vocabulary in the `cucumber-feature-file` skill.
 
-```typescript
-// ✓ GOOD - Based on HTML semantics
-page.locator('input[name="email"][type="text"]')
-page.locator('input[placeholder="Enter email"]')
-page.locator('#submit-button')
-```
-
-**Why Use:**
-- Based on HTML semantics
-- Stable structure
-- Works without test-specific attributes
-
-#### **Tier 4: CSS & XPath (AVOID)**
-
-```typescript
-// ⚠ AVOID - Fragile, breaks with UI changes
-page.locator('.btn-primary-lg-v2-hover')  // CSS classes change frequently
-page.locator('//button[contains(@class, "btn")]//span[1]')  // Unmaintainable XPath
-```
-
-**Why Avoid:**
-- Break with CSS refactors
-- Hard to read and maintain
-- Tightly coupled to UI styling
-
-### Best Practice Examples
-
-```typescript
-// ✓ BEST - Combine strategies for robustness
-page.locator('[data-testid="submit"] >> role=button')
-
-// ✓ GOOD - Accessibility-first
-page.getByRole('textbox', { name: /password/i })
-
-// ✓ GOOD - Chained locators for specificity
-page.locator('form[data-testid="login"]').locator('[data-testid="submit"]')
-
-// ⚠ AVOID - Over-specific, brittle
-page.locator('div > div > form > div:nth-child(3) > button')
-```
-
----
-
-## Assertions & Validation
-
-### Rule: Always Assert Specifically
-
-❌ **AVOID Generic Assertions**
-
-```typescript
-await expect(page).toHaveURL('https://example.com/dashboard')
-await expect(loginButton).toBeVisible()
-```
-
-✅ **USE Specific Assertions**
-
-```typescript
-await expect(page).toHaveURL('https://example.com/dashboard')
-await expect(loginButton).toContainText('Login')
-await expect(successMessage).toHaveText('Login successful')
-```
-
-### Assertion Patterns
-
-#### **After Successful Operations**
-
-```typescript
-// ✓ Assert exact success message
-await loginPage.login('user@example.com', 'password123')
-const successMsg = await page.locator('[data-testid="success-message"]').textContent()
-expect(successMsg).toBe('Welcome, John Doe!')
-
-// ✓ Assert navigation occurred
-await expect(page).toHaveURL('/dashboard')
-await expect(page.locator('h1')).toContainText('Dashboard')
-```
-
-#### **After Failed Operations**
-
-```typescript
-// ✓ Assert exact error message
-await loginPage.login('user@example.com', 'wrongpassword')
-const errorMsg = await page.locator('[data-testid="error"]').textContent()
-expect(errorMsg).toContain('Invalid credentials')
-expect(errorMsg).not.toContain('undefined')
-```
-
-#### **Financial & Data-Sensitive Operations**
-
-```typescript
-// ✓ Assert exact numeric values
-const balance = await page.locator('[data-testid="balance"]').textContent()
-expect(balance).toBe('$1,234.56')  // Exact match including formatting
-
-// ✓ Verify account number format
-expect(accountNumber).toMatch(/^AC-\d{10}$/)
-
-// ✓ Assert transaction details
-expect(transaction.amount).toBe(100.00)
-expect(transaction.currency).toBe('USD')
-expect(transaction.status).toBe('COMPLETED')
-```
-
-### Common Assertion Methods
-
-```typescript
-// Text content
-expect(text).toBe('Exact match')
-expect(text).toContain('substring')
-expect(text).toMatch(/regex/)
-
-// Visibility
-expect(element).toBeVisible()
-expect(element).toBeHidden()
-expect(element).not.toBeInViewport()
-
-// State
-expect(element).toBeEnabled()
-expect(element).toBeDisabled()
-expect(element).toBeChecked()
-expect(element).toBeFocused()
-
-// Count
-expect(rows).toHaveCount(5)
-expect(errors).toHaveCount(0)
-```
-
----
-
-## Wait Strategy
-
-### Core Principle: Let Playwright Wait For You
-
-✅ **BEST - Playwright Auto-Waiting**
-
-```typescript
-// Auto-waiting handles visibility, actionability, and timing
-await page.locator('[data-testid="load"]').click()
-await expect(page.locator('[data-testid="result"]')).toBeVisible()
-```
-
-❌ **NEVER - Hardcoded Waits**
-
-```typescript
-await page.waitForTimeout(2000)  // WRONG - Flaky and slow
-await new Promise(resolve => setTimeout(resolve, 1000))  // WRONG
-```
-
-### Wait for Dynamic Content
-
-```typescript
-// ✓ Wait for dropdown to appear and select
-await page.locator('[data-testid="dropdown"]').click()
-await page.locator('[data-testid="dropdown-option"]').first().waitFor({ state: 'visible' })
-await page.locator('text=Option 1').click()
-
-// ✓ Wait for list to load before counting
-await expect(page.locator('[data-testid="item"]')).toHaveCount(10)
-
-// ✓ Wait for input to be ready
-await page.locator('input[name="email"]').fill('user@example.com')
-```
-
-### Wait for Network Responses
-
-```typescript
-// ✓ Wait for API response after action
-const responsePromise = page.waitForResponse(
-  response => response.url().includes('/api/login') && response.status() === 200
-)
-await page.locator('[data-testid="login"]').click()
-const response = await responsePromise
-expect(response.status()).toBe(200)
-
-// ✓ Wait for multiple network requests
-await Promise.all([
-  page.waitForResponse(r => r.url().includes('/user')),
-  page.waitForResponse(r => r.url().includes('/settings')),
-  page.locator('[data-testid="refresh"]').click()
-])
-
-// ✓ Wait for loading indicator to disappear
-await page.locator('[data-testid="spinner"]').waitFor({ state: 'hidden' })
-```
-
-### Timeout Configuration
-
-```typescript
-// ✓ Standard timeout (30 seconds default)
-await expect(element).toBeVisible()
-
-// ✓ Custom timeout for slow operations
-await page.waitForURL('https://example.com/dashboard', { timeout: 10000 })
-
-// ✓ Short timeout for immediate responses
-await expect(page.locator('[data-testid="error"]')).toBeVisible({ timeout: 3000 })
-
-// ✓ Extended timeout for degraded environments
-const perfElement = await page.locator('[data-testid="perf-item"]').waitFor({ timeout: 15000 })
-```
-
----
-
-## Test Stability
-
-### Rule 1: No Test Interdependencies
-
-❌ **BAD - Test depends on previous test**
-
-```typescript
-test('User can view profile', () => {
-  // Assumes login happened in previous test
-  await expect(page.locator('h1')).toContainText('Profile')
-})
-```
-
-✅ **GOOD - Each test is self-contained**
-
-```typescript
-test('User can view profile', async ({ page }) => {
-  await loginPage.navigate()
-  await loginPage.login('user@example.com', 'password')
-  await expect(page).toHaveURL('/profile')
-  await expect(page.locator('h1')).toContainText('Profile')
-})
-```
-
-### Rule 2: Selectors Work Across All States
-
-✅ **GOOD - Selector works with any account**
-
-```typescript
-test.beforeEach(async ({ page }) => {
-  const users = [
-    { email: 'standard@example.com', name: 'Standard User' },
-    { email: 'premium@example.com', name: 'Premium User' },
-    { email: 'admin@example.com', name: 'Admin User' }
-  ]
-  // Use data-testid that works for all user types
-  await page.locator('[data-testid="user-name"]').waitFor()
-})
-```
-
-❌ **BAD - Selector assumes specific user**
-
-```typescript
-await expect(page.locator('text=John Doe')).toBeVisible()
-```
-
-### Rule 3: Use Fixtures for Setup
-
-```typescript
-// ✓ Reusable fixture for login
-test.beforeEach(async ({ page, context }) => {
-  // Setup: Navigate and login fresh for each test
-  await page.goto('https://app.example.com')
-  await page.locator('[data-testid="email"]').fill('user@example.com')
-  await page.locator('[data-testid="password"]').fill('password123')
-  await page.locator('[data-testid="login"]').click()
-  await expect(page).toHaveURL('/dashboard')
-})
-
-test('Should perform action', async ({ page }) => {
-  // Test starts with logged-in state
-  await page.locator('[data-testid="action-button"]').click()
-})
-```
-
-### Rule 4: Avoid Global State
-
-❌ **BAD - Shared data affects tests**
-
-```typescript
-let testData
-test('Setup', () => {
-  testData = { id: '123' }
-})
-test('Use data', () => {
-  expect(testData.id).toBe('123')  // Depends on previous test
-})
-```
-
-✅ **GOOD - Each test has its own data**
-
-```typescript
-test('First operation', async () => {
-  const id = await createItem()
-  expect(id).toBeDefined()
-})
-test('Second operation', async () => {
-  const id = await createItem()  // Fresh data
-  expect(id).toBeDefined()
-})
-```
-
----
-
-## Reporting Standards
-
-### Screenshot on Failure (Required)
-
-```typescript
-// ✓ BEST - Auto-capture on failure
-test.afterEach(async ({ page }, testInfo) => {
-  if (testInfo.status !== 'passed') {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    await page.screenshot({
-      path: `test-results/screenshots/${testInfo.title}-${timestamp}.png`,
-      fullPage: true
-    })
-  }
-})
-
-// ✓ GOOD - Manual capture at critical points
-await page.screenshot({ path: 'test-results/before-submit.png' })
-await form.submit()
-await page.screenshot({ path: 'test-results/after-submit.png' })
-```
-
-### Test Logging for Traceability
-
-```typescript
-test('Complex workflow', async ({ page }) => {
-  console.log('STEP 1: Navigate to login page')
-  await page.goto('https://app.example.com/login')
-  
-  console.log('STEP 2: Enter credentials')
-  await page.locator('[data-testid="email"]').fill('user@example.com')
-  await page.locator('[data-testid="password"]').fill('password123')
-  
-  console.log('STEP 3: Submit form')
-  await page.locator('[data-testid="login"]').click()
-  
-  console.log('STEP 4: Verify redirect')
-  await expect(page).toHaveURL('/dashboard')
-  
-  console.log('TEST PASSED')
-})
-```
-
-### Video Recording & Tracing
-
-```typescript
-// playwright.config.ts
-export default defineConfig({
-  use: {
-    video: 'retain-on-failure',  // Record only failed tests
-    trace: 'on-first-retry'       // Trace on retry
-  }
-})
-
-// Optional: Manual video capture
-test('Critical checkout flow', async ({ page }) => {
-  const video = page.video()
-  await video.saveAs('test-results/checkout-video.webm')
-})
-```
-
----
-
-## Step Definitions
-
-### Page Object Model Pattern
-
-```typescript
-// pages/login.page.ts
-import { Page, Locator } from '@playwright/test'
-
-export class LoginPage {
-  readonly page: Page
-  readonly emailInput: Locator
-  readonly passwordInput: Locator
-  readonly loginButton: Locator
-  readonly errorMessage: Locator
-
-  constructor(page: Page) {
-    this.page = page
-    this.emailInput = page.locator('[data-testid="username"]')
-    this.passwordInput = page.locator('[data-testid="password"]')
-    this.loginButton = page.locator('[data-testid="login-button"]')
-    this.errorMessage = page.locator('[data-testid="error-message"]')
-  }
-
-  async goto() {
-    await this.page.goto('https://www.saucedemo.com/')
-    await this.emailInput.waitFor()
-  }
-
-  async fillEmail(email: string) {
-    await this.emailInput.fill(email)
-  }
-
-  async fillPassword(password: string) {
-    await this.passwordInput.fill(password)
-  }
-
-  async clickLoginButton() {
-    await this.loginButton.click()
-  }
-
-  async getErrorMessage(): Promise<string> {
-    return await this.errorMessage.textContent() || ''
-  }
-
-  async isErrorMessageVisible(): Promise<boolean> {
-    return await this.errorMessage.isVisible()
-  }
-}
-```
-
-### Step Implementation with Allure
-
-```typescript
-// steps/auth.steps.ts
-import { Given, When, Then } from '@cucumber/cucumber'
-import { expect, Page } from '@playwright/test'
-import * as allure from 'allure-playwright'
-import { LoginPage } from '../pages/login.page'
-
-let page: Page
-let loginPage: LoginPage
-
-Given('I navigate to the login page', async function() {
-  await allure.step('Navigate to login page', async () => {
-    loginPage = new LoginPage(page)
-    await loginPage.goto()
-  })
-})
-
-When('I enter email {string}', async function(email: string) {
-  await allure.step(`Enter email: ${email}`, async () => {
-    await loginPage.fillEmail(email)
-  })
-})
-
-When('I enter password {string}', async function(password: string) {
-  await allure.step(`Enter password: ****`, async () => {
-    await loginPage.fillPassword(password)
-  })
-})
-
-When('I click the login button', async function() {
-  await allure.step('Click login button', async () => {
-    await loginPage.clickLoginButton()
-  })
-})
-
-Then('I should be redirected to the products page', async function() {
-  await allure.step('Verify redirect to products page', async () => {
-    await expect(page).toHaveURL(/.*inventory\.html/)
-  })
-})
-
-Then('I should see error message {string}', async function(expectedMessage: string) {
-  await allure.step(`Verify error message: "${expectedMessage}"`, async () => {
-    const errorText = await loginPage.getErrorMessage()
-    expect(errorText).toContain(expectedMessage)
-  })
-})
-```
-
----
-
-## Configuration
-
-### Cucumber Configuration
-
-```javascript
-// cucumber.js
-module.exports = {
-  default: {
-    require: ['steps/**/*.ts'],
-    requireModule: ['ts-node/register'],
-    format: [
-      'progress-bar',
-      'html:cucumber-report.html',
-      'json:test-results/cucumber-report.json'
-    ],
-    formatOptions: { snippetInterface: 'async-await' },
-    parallel: 2,
-    retry: 1,
-    retryTagFilter: '@flaky',
-    strict: true,
-    order: 'random'
-  }
-}
-```
-
-### Package.json Scripts
-
-```json
-{
-  "scripts": {
-    "test": "cucumber-js",
-    "test:smoke": "cucumber-js --tags '@smoke'",
-    "test:critical": "cucumber-js --tags '@critical'",
-    "test:regression": "cucumber-js --tags '@regression'",
-    "test:parallel": "cucumber-js --parallel 4",
-    "allure:report": "allure generate allure-results -o allure-report --clean",
-    "allure:open": "allure open allure-report",
-    "allure:serve": "allure serve allure-results"
-  }
-}
-```
-
----
-
-## Data Management
-
-### Externalize Test Data
-
-```json
-// test-data/users.json
-{
-  "validUsers": [
-    { "email": "standard_user@saucedemo.com", "password": "password123", "name": "Standard User" },
-    { "email": "premium_user@saucedemo.com", "password": "password123", "name": "Premium User" }
-  ],
-  "invalidUsers": [
-    { "email": "locked_out_user@saucedemo.com", "password": "password123", "error": "locked out" },
-    { "email": "invalid@example.com", "password": "wrongpass", "error": "invalid credentials" }
-  ]
-}
-```
-
-### Environment Variables
+## 10. Commands
 
 ```bash
-# .env.example (commit to repo)
-TEST_USER_EMAIL=standard_user@saucedemo.com
-TEST_USER_PASSWORD=***redacted***
-APP_URL=https://www.saucedemo.com
-
-# .env (local only, don't commit)
-TEST_USER_EMAIL=standard_user@saucedemo.com
-TEST_USER_PASSWORD=password123
-APP_URL=https://www.saucedemo.com
+behave --dry-run                                  # parse + step binding check
+behave --steps-catalog                            # list existing steps before writing new ones
+behave features/cart.feature                      # run one feature
+behave features/cart.feature -n "Remove item"     # run one scenario by name
+behave --tags "@smoke and not @wip"               # by tag expression
+HEADLESS=true bash .claude/skills/cicd-pipeline/scripts/run_tests.sh   # CI-identical run
+allure serve results/allure-results               # view report
 ```
 
----
+## 11. Common pitfalls
 
-## Common Pitfalls
-
-| Problem | ❌ Bad Practice | ✓ Solution |
-|---------|-----------------|-----------|
-| **Element not found** | Generic locators | Use data-testid attributes |
-| **Flaky waits** | `await page.waitForTimeout(2000)` | Use auto-waiting & explicit waits |
-| **Hardcoded credentials** | Username/password in features | Move to test-data JSON files |
-| **Brittle selectors** | CSS class selectors `.btn-v2` | Use data-testid or ARIA roles |
-| **Test interdependencies** | Scenario depends on previous | Use Background/Given setup |
-| **No traceability** | Missing Allure labels | Add severity, owner, feature labels |
-| **Flaky scenarios** | No retry logic | Use @flaky tag + retryTagFilter |
-| **Hard to debug** | No video recordings | Enable video capture on failure |
-| **Unclear validations** | Generic assertions | Assert exact values |
-| **Missing parameters** | Hardcoded test data | Document expected vs actual |
-
----
-
-## Quick Reference
-
-### Testing Commands
-
-```bash
-# Run tests
-npm run test                    # All tests
-npm run test:smoke            # Smoke tests (@smoke)
-npm run test:critical         # Critical tests (@critical)
-npm run test:regression       # Regression tests (@regression)
-npm run test:parallel         # Parallel execution (4 workers)
-
-# Allure reports
-npm run allure:report         # Generate report
-npm run allure:open           # View in browser
-npm run allure:serve          # Live server (auto-refresh)
-```
-
-### Gherkin Syntax
-
-```gherkin
-Feature: Feature description          # What users can do
-  Scenario: Single test case          # One test case
-  Scenario Outline: Data-driven test  # Multiple examples
-    Examples: | data |                # Test data rows
-  
-  Given <precondition>                # Setup state
-  When <action>                        # User action
-  Then <assertion>                     # Verify result
-  And <additional step>                # Additional step
-```
-
-### Tags
-
-```gherkin
-@smoke            # Smoke tests
-@critical         # Must pass
-@regression       # Full suite
-@flaky            # Retry enabled
-@wip              # Work in progress
-@skip             # Skip test
-```
-
----
-
-**Version:** BDD Standard v3.1  
-**Framework:** Playwright + Cucumber + Allure  
-**Last Updated:** 2026-07-23  
-**Expertise Level:** Intermediate to Advanced
+| Problem | ❌ Bad practice | ✅ Solution |
+|---------|----------------|-------------|
+| Element not found / brittle | CSS classes, `nth-child`, XPath | Tier 1–2 locators from the live DOM |
+| Flaky timing | `time.sleep`, `wait_for_timeout` | Auto-wait + `expect(...)` |
+| Errors hidden | `except Exception: return False` | Let it raise, or re-raise with context |
+| False-green tests | `assert page.click_login()` | Assert the visible outcome |
+| Secrets leak | Typed values logged; credentials in steps | Mask logs; credentials from `Config` |
+| Test interdependence | Scenario relies on a previous one | New context per scenario; setup in Given |
+| Ambiguous steps | Same pattern in two step files | `--steps-catalog`, reuse or reword |
+| Money mismatches | Float arithmetic | `Decimal`, assert each component |
+| Wrong stack | `.spec.ts`, `npx playwright test` | Python page objects + Behave steps |

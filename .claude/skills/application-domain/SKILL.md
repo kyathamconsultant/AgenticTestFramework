@@ -1,16 +1,21 @@
 ---
 name: application-domain
-title: E-Commerce QA Risk-Based Testing Framework
-description: Comprehensive risk identification and test case design for e-commerce systems with financial, inventory, fraud, and compliance considerations
-category: Domain Knowledge
-version: 2.0
-updated: 2026-10-21
-level: Intermediate to Advanced
+description: E-commerce domain knowledge for risk-based testing - financial, inventory, fraud, validation, business-rule, checkout/payment and concurrency risks, boundary values, and a risk categorization matrix. Use when analysing a feature for test design, prioritising scenarios by risk, choosing what to assert on prices, totals, tax, stock or orders, or checking risk coverage of a test suite.
+license: Proprietary - internal QA team use
+compatibility: Stack-independent domain knowledge. Applied in this repo through the qa-analyst-agent and the Python Behave framework.
+metadata:
+  author: QA Team
+  version: "2.1"
+  updated: "2026-10-30"
+  category: domain-knowledge
+  level: Intermediate to Advanced
 ---
 
 # E-Commerce QA Risk-Based Testing Framework
 
 **Systematic risk identification and testing strategies for e-commerce applications**
+
+> **How this skill is used:** `qa-analyst-agent` applies it to produce `specs/<feature>-risk-analysis.md`. The planner and generator use it to prioritise scenarios and choose financial assertions. Write the resulting scenarios with the `cucumber-feature-file` skill and implement them with `playwright-test-automation`. See `.claude/ARCHITECTURE.md`.
 
 ---
 

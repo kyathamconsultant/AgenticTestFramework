@@ -1,36 +1,36 @@
-Load the agent defined in agents/playwright-automation-agent.md.
-Read CLAUDE.md for automation standards before starting.
+---
+description: End-to-end automation of a feature - analyse, explore, generate Python Behave tests, heal, review
+argument-hint: <feature name or description>
+---
+
+Read `.claude/agents/playwright-automation-agent.md` and act as that orchestrator **in this main session**, so you can delegate to the specialist agents with the Agent tool.
 
 Feature to automate: $ARGUMENTS
 
-## Phase 1 – Exploration (Playwright Planner Agent)
+Before starting, read:
+- `CLAUDE.md`: project context and stack
+- `.claude/ARCHITECTURE.md`: stages, artifact contract, gates G1–G5, tooling rules
 
-Use the Playwright Planner agent with the MCP browser to:
-1. Load .claude/skills/playwright-test-automation/SKILL.md — apply locator rules throughout
-2. Load .claude/skills/application-domain/SKILL.md — apply domain knowledge to test scenarios
-3. Navigate to the application and log in using provided credentials
-4. Navigate to the feature page for: $ARGUMENTS
-5. Explore the feature completely — all form fields, dropdowns, buttons, flows
-6. Explore both the success state and error/validation states
-7. Produce a structured test plan:
-   - All test scenarios for: $ARGUMENTS
-   - Step-by-step actions per scenario
-   - Expected outcomes per scenario
-   - All selectors observed in the live DOM during exploration
+Run the stages exactly as the orchestrator defines them:
 
-## Phase 2 – Script Generation (Playwright Generator Agent)
+| # | Stage | Agent | Skills the agent loads |
+|---|-------|-------|------------------------|
+| 1 | Risk analysis (skip if current) | `qa-analyst-agent` | application-domain, cucumber-feature-file |
+| 2 | Live exploration & test plan (MCP `browser_*` tools) | `playwright-test-planner` | playwright-test-automation, application-domain, cucumber-feature-file |
+| 3 | Generate feature, steps, page objects, data | `playwright-test-generator` | cucumber-feature-file, playwright-test-automation, application-domain, test-code-review |
+| 4 | Run `HEADLESS=true behave features/<feature>.feature`; heal failures (max 3 rounds) | `playwright-test-healer` | playwright-test-automation, cucumber-feature-file, test-code-review, cicd-pipeline (flaky policy) |
+| 5 | Quality gate | `test-code-reviewer` | test-code-review, cucumber-feature-file, playwright-test-automation, application-domain, cicd-pipeline |
 
-Using the test plan and live selectors from Phase 1:
-8. Generate a Page Object Model class for the feature
-9. Generate a complete Playwright TypeScript spec file covering all scenarios
+Output files (Python Behave only, no TypeScript):
 
-10. Apply CLAUDE.md financial policies to every assertion (no generic checks)
-11. Add screenshot-on-failure afterEach hook
-12. Externalize all credentials, amounts, and account values to a JSON test data file
+| Artifact | Path |
+|----------|------|
+| Risk analysis | `specs/<feature>-risk-analysis.md` |
+| Test plan | `specs/<feature>-test-plan.md` |
+| Feature file | `features/<feature>.feature` |
+| Step definitions | `features/steps/<feature_snake>_steps.py` |
+| Page objects | `pages/<page_snake>_page.py` |
+| Test data | `test_data/<feature_snake>_data.json` |
+| Healing log | `specs/<feature>-healing-log.md` (only if healing ran) |
 
-## Output Files
-
-- Save spec file to:      /tests/<feature-name>.spec.ts
-- Save Page Object to:    /pages/<feature-name>.page.ts
-- Save test data to:      /test-data/<feature-name>.json
-- Save features to:      /features/<feature-name>.json
+Finish with the orchestrator's final report. Do not commit or push unless asked.
